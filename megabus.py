@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# scrape megabus routes by select departure points one at a time and parsing
-# AJAX updates to destinations select box 
-# john@lawnjam.com
-# also ted@shlashdot.org
+# megabus scraper
+# 2011-03-05 john@lawnjam.com
+# 2011-07-15 ted@shlashdot.org
 
 import datetime
 import re
@@ -34,13 +33,14 @@ DEFAULT_VALUES = {
         }
 
 class MegabusScraper(object):
-    """Encapsulate a Megabus search request, which must be made
-    through four separate POST requests (sigh).
+    """Performs a Megabus search.  Such a request is stateful due to
+    Megabus's use of ASP.Net, and this class maintains this state, which
+    is updated after every POST request.
     """
     locations = {}
     start = None
     dest = None
-    date = None
+    outbound_date = None
     possible_dests = {}
     def __init__(self, values={}, opener=None):
         self.values = DEFAULT_VALUES.copy()
@@ -51,21 +51,33 @@ class MegabusScraper(object):
             opener.addheaders = HEADERS
         self.opener = opener
 
-    def init_viewstate(self):
-        self.locations = _init_state(self.opener, self.values)
+    def _init_locations_and_viewstate(self, force=False):
+        if force or not self.locations:
+            self.locations = _init_state(self.opener, self.values)
+
+    def get_cities(self):
+        """Returns a dict of names of Megabus stops, keyed by ID.
+        These IDs are used to set the start and destination of a Megabus
+        search.
+        """
+        self._init_locations_and_viewstate()
+        return self.locations
 
     def set_start(self, key):
-        assert "__VIEWSTATE" in self.values 
-        if not self.locations:
-            raise IncompleteRequestError("Need to call init_viewstate first")
+        """Sets the search request's starting city ID.
+        
+        Returns a dict of possible destinations."""
+        self._init_locations_and_viewstate()
         if key not in self.locations:
-            raise ValueError("%d is not in the list of starting cities" % key)
+            raise ValueError("%d is not a valid city ID" % key)
         dests = _set_start(self.opener, self.values, key)
         self.start = key
         self.possible_dests[key] = dests
         return dests
 
     def set_dest(self, key):
+        """Sets the search request's destination city ID."""
+        self._init_locations_and_viewstate()
         assert "__VIEWSTATE" in self.values
         if not self.start:
             raise IncompleteRequestError("Need to call set_start first")
@@ -77,15 +89,22 @@ class MegabusScraper(object):
         _set_dest(self.opener, self.values, key)
         self.dest = key
 
-    def set_outbound_date(self, date):
+    def set_outbound_date(self, outbound_date):
+        """Sets the search request's outboundure date."""
+        self._init_locations_and_viewstate()
         assert "__VIEWSTATE" in self.values
-        _set_outbound_date(self.opener, self.values, date)
-        self.date = date
+        _set_outbound_date(self.opener, self.values, outbound_date)
+        self.outbound_date = outbound_date
 
     def get_results(self):
-        assert self.start and self.dest and self.date
+        """Performs the search request and returns a list of matching bus
+        trips as tuples of (depart_datetime, arrive_datetime, fare).
+        """
+        if not (self.start or self.dest or self.outbound_date):
+            raise IncompleteRequestError("Need to call set_start, set_dest "
+                    "and set_outbound_date first")
         _do_search(self.opener, self.values)
-        return _get_results(self.opener, self.values, self.date)
+        return _get_results(self.opener, self.values, self.outbound_date)
 
 def _ajax_to_dict(piped_str):
     """Convert the pipe-separated KV pairs returned by Megabus to a dict"""
@@ -152,7 +171,7 @@ def _set_dest(opener, values, dest):
 
 def _set_outbound_date(opener, values, date):
     # 3rd POST: set date
-    date_ref = datetime.datetime(2000, 1, 1)
+    date_ref = datetime.date(2000, 1, 1)
     date_offset = (date - date_ref).days
     values['Welcome1$ScriptManager1'] = 'SearchAndBuy1$upOutboundDate|SearchAndBuy1$calendarOutboundDate'
     values['__EVENTTARGET'] = 'SearchAndBuy1$calendarOutboundDate'
@@ -185,7 +204,7 @@ def _parse_row(row, depart_date):
         return None
     return (depart_dt, arrive_dt, price)
 
-def _get_results(opener, values, depart_date):
+def _get_results(opener, values, outbound_date):
     """Load result page and return matching fares as a list of tuples of
     (depart_datetime, arrive_datetime, fare)"""
     response = opener.open(RESULTS_URL, None)
@@ -194,7 +213,7 @@ def _get_results(opener, values, depart_date):
     if not table:
         raise MegabusException("Search expired.")
     rows = table.findAll("tr")[1:]
-    return filter(None, (_parse_row(row, depart_date) for row in rows))
+    return filter(None, (_parse_row(row, outbound_date) for row in rows))
 
 class MegabusException(Exception):
     pass
