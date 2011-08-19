@@ -7,6 +7,7 @@
 import datetime
 import re
 from BeautifulSoup import BeautifulSoup
+from dateutil.relativedelta import relativedelta
 import urllib, urllib2, cookielib
 
 START_URL = 'http://us.megabus.com/default.aspx'
@@ -91,9 +92,13 @@ class MegabusScraper(object):
 
     def set_outbound_date(self, outbound_date):
         """Sets the search request's outboundure date."""
-        self._init_locations_and_viewstate()
+        if not (self.start and self.dest):
+            raise IncompleteRequestError("Start and dest cities must be set first")
         assert "__VIEWSTATE" in self.values
-        _set_outbound_date(self.opener, self.values, outbound_date)
+        prev_date = (self.outbound_date
+                if self.outbound_date 
+                else datetime.date.today())
+        _set_outbound_date(self.opener, self.values, outbound_date, prev_date)
         self.outbound_date = outbound_date
 
     def get_results(self):
@@ -118,8 +123,11 @@ def _make_ajax_request(url, opener, values):
     response = opener.open(url, data)
     resp_dict = _ajax_to_dict(response.read())
     # save ASP.NET state junk
-    values['__VIEWSTATE'] = resp_dict['__VIEWSTATE']
-    values['__EVENTVALIDATION'] = resp_dict['__EVENTVALIDATION']
+    try:
+        values['__VIEWSTATE'] = resp_dict['__VIEWSTATE']
+        values['__EVENTVALIDATION'] = resp_dict['__EVENTVALIDATION']
+    except KeyError:
+        raise MegabusException("The request was not completed successfully.")
     return resp_dict
 
 
@@ -169,10 +177,20 @@ def _set_dest(opener, values, dest):
     html = resp_dict['SearchAndBuy1_upSearchAndBuy']
     return (opener, values)
 
-def _set_outbound_date(opener, values, date):
-    # 3rd POST: set date
+def _set_outbound_date(opener, values, date, prev_date):
+    """Set the request's date. This may require multiple POSTs if the requested
+    date is in a different month than the previously requested date, as
+    Megabus's calendar widget needs to be advanced to the desired month."""
     date_ref = datetime.date(2000, 1, 1)
     date_offset = (date - date_ref).days
+    if date.month != prev_date.month:
+        diff = date.month - prev_date.month
+        for i in xrange(1, diff+1, cmp(diff,0)):
+            firstday = prev_date + relativedelta(months=i, day=1)
+            values['__EVENTTARGET'] = 'SearchAndBuy1$calendarOutboundDate'
+            values['__EVENTARGUMENT'] = 'V%d' % (firstday - date_ref).days
+            _make_ajax_request(START_URL, opener, values)
+
     values['Welcome1$ScriptManager1'] = 'SearchAndBuy1$upOutboundDate|SearchAndBuy1$calendarOutboundDate'
     values['__EVENTTARGET'] = 'SearchAndBuy1$calendarOutboundDate'
     values['__EVENTARGUMENT'] = date_offset
