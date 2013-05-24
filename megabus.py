@@ -12,26 +12,24 @@ import urllib, urllib2, cookielib
 
 START_URL = 'http://us.megabus.com/default.aspx'
 RESULTS_URL = 'http://us.megabus.com/JourneyResults.aspx'
-HEADERS = [('User-Agent', 'Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.1.3) Gecko/20090824 Firefox/3.5.3'),
+HEADERS = [('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/27.0.1453.93 Safari/537.36'),
         ('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'),
         ('Accept-Language', 'en-gb,en;q=0.8,en-us;q=0.5,gd;q=0.3'),
-        ('Accept-Encoding', 'gzip,deflate'),
         ('Accept-Charset', 'ISO-8859-1,utf-8;q=0.7),*;q=0.7'),]
 DEFAULT_VALUES = {
-        'Welcome1_ScriptManager1_HiddenField': '',
-        'Welcome1$ScriptManager1': 'SearchAndBuy1$upSearchAndBuy|SearchAndBuy1$ddlLeavingFrom',
-        '__EVENTTARGET': 'SearchAndBuy1$ddlLeavingFrom',
+        'UserStatus_ScriptManager1_HiddenField': '',
+        '__EVENTTARGET': 'JourneyPlanner$ddlLeavingFrom',
         '__EVENTARGUMENT': '',
         'Welcome1$hdnBasketItemCount': '0',
         'Language1$ddlLanguage': 'en',
-        'SearchAndBuy1$txtPassengers': '1',
-        'SearchAndBuy1$txtConcessions': '0',
-        'SearchAndBuy1$txtNUSExtra': '0',
-        'SearchAndBuy1$txtOutboundDate': '',
-        'SearchAndBuy1$txtReturnDate': '',
-        'SearchAndBuy1$txtPromotionalCode': '',
+        'JourneyPlanner$txtPassengers': '1',
+        'JourneyPlanner$txtOutboundDate': '',
+        'JourneyPlanner$txtReturnDate': '',
+        'JourneyPlanner$txtPromotionalCode': '',
+        'JourneyPlanner$DisabledPassengers': 'rdoDisabledPassengersNo',
         '__ASYNCPOST': 'true'
-        }
+    }
+
 
 class MegabusScraper(object):
     """Performs a Megabus search.  Such a request is stateful due to
@@ -108,7 +106,6 @@ class MegabusScraper(object):
         if not (self.start or self.dest or self.outbound_date):
             raise IncompleteRequestError("Need to call set_start, set_dest "
                     "and set_outbound_date first")
-        _do_search(self.opener, self.values)
         return _get_results(self.opener, self.values, self.outbound_date)
 
 def _ajax_to_dict(piped_str):
@@ -121,7 +118,9 @@ def _make_ajax_request(url, opener, values):
     """Make a Megabus AJAX request"""
     data = urllib.urlencode(values)
     response = opener.open(url, data)
-    resp_dict = _ajax_to_dict(response.read())
+
+    d = response.read()
+    resp_dict = _ajax_to_dict(d)
     # save ASP.NET state junk
     try:
         values['__VIEWSTATE'] = resp_dict['__VIEWSTATE']
@@ -132,7 +131,7 @@ def _make_ajax_request(url, opener, values):
 
 
 def _init_state(opener, values):
-    """Start a Megabus search.  
+    """Start a Megabus search.
     Returns a dict of possible starting locations and sets the VIEWSTATE
     and EVENTVALIDATION form values.
     """
@@ -141,11 +140,11 @@ def _init_state(opener, values):
     megaSoup = BeautifulSoup(response.read())
     viewstate = megaSoup.find(name='input', attrs={'name': '__VIEWSTATE'})['value']
     eventvalidation = megaSoup.find(name='input', attrs={'name': '__EVENTVALIDATION'})['value']
-    options = megaSoup.find(name='select', attrs={'name': 'SearchAndBuy1$ddlLeavingFrom'}).findAll('option')
+    options = megaSoup.find(name='select', attrs={'name': 'JourneyPlanner$ddlLeavingFrom'}).findAll('option')
     startLocations = {}
     for o in options:
         startLocations[int(o['value'])] = o.find(text=True)
-    del startLocations[0] # 0 is "Select"
+    del startLocations[-1]  # -1 is "Select"
     opener.addheaders.append(('X-MicrosoftAjax', 'Delta=true'))
     values['__EVENTVALIDATION'] = eventvalidation
     values['__VIEWSTATE'] = viewstate
@@ -155,13 +154,14 @@ def _init_state(opener, values):
 def _set_start(opener, values, start):
     """Sets the starting location for a search by int ID."""
 
-    values['SearchAndBuy1$ddlLeavingFrom'] = start
+    values['JourneyPlanner$ddlLeavingFrom'] = start
+    values['JourneyPlanner$hdnSelected'] = "%d" % start
     resp_dict = _make_ajax_request(START_URL, opener, values)
-    html = resp_dict['SearchAndBuy1_upSearchAndBuy']
+    html = resp_dict['JourneyPlanner_UpdatePanel1']
 
     # parse out destinations for start
     megaSoup = BeautifulSoup(html)
-    options = megaSoup.find(name='select', attrs={'name': 'SearchAndBuy1$ddlTravellingTo'}).findAll('option')
+    options = megaSoup.find(name='select', attrs={'name': 'JourneyPlanner$ddlTravellingTo'}).findAll('option')
     endLocations = {}
     for o in options:
         if int(o['value']) > 0:
@@ -169,52 +169,35 @@ def _set_start(opener, values, start):
     return endLocations
 
 def _set_dest(opener, values, dest):
-    values['Welcome1$ScriptManager1'] = 'SearchAndBuy1$upSearchAndBuy|SearchAndBuy1$ddlTravellingTo'
-    values['__EVENTTARGET'] = 'SearchAndBuy1$ddlTravellingTo'
+    # values['Welcome1$ScriptManager1'] = 'SearchAndBuy1$upSearchAndBuy|SearchAndBuy1$ddlTravellingTo'
+    values['__EVENTTARGET'] = 'JourneyPlanner$ddlTravellingTo'
     values['__LASTFOCUS'] = ''
-    values['SearchAndBuy1$ddlTravellingTo'] = dest
+    values['JourneyPlanner$ddlTravellingTo'] = dest
+    values['JourneyPlanner$hdnSelected'] += ",%d" % dest
     resp_dict = _make_ajax_request(START_URL, opener, values)
-    html = resp_dict['SearchAndBuy1_upSearchAndBuy']
     return (opener, values)
 
 def _set_outbound_date(opener, values, date, prev_date):
     """Set the request's date. This may require multiple POSTs if the requested
     date is in a different month than the previously requested date, as
     Megabus's calendar widget needs to be advanced to the desired month."""
-    date_ref = datetime.date(2000, 1, 1)
-    date_offset = (date - date_ref).days
-    if date.month != prev_date.month:
-        diff = date.month - prev_date.month
-        for i in xrange(1, diff+1, cmp(diff,0)):
-            firstday = prev_date + relativedelta(months=i, day=1)
-            values['__EVENTTARGET'] = 'SearchAndBuy1$calendarOutboundDate'
-            values['__EVENTARGUMENT'] = 'V%d' % (firstday - date_ref).days
-            _make_ajax_request(START_URL, opener, values)
+    datestr = date.strftime("%m/%d/%Y")
 
-    values['Welcome1$ScriptManager1'] = 'SearchAndBuy1$upOutboundDate|SearchAndBuy1$calendarOutboundDate'
-    values['__EVENTTARGET'] = 'SearchAndBuy1$calendarOutboundDate'
-    values['__EVENTARGUMENT'] = date_offset
-    resp_dict = _make_ajax_request(START_URL, opener, values)
-    html = resp_dict['SearchAndBuy1_upSearchAndBuy']
-
-
-def _do_search(opener, values):
-    """After calling set_start, set_dest and set_outbound_date, perform
-    a megabus search."""
-    values['Welcome1$ScriptManager1'] = 'SearchAndBuy1$upSearchAndBuy|SearchAndBuy1$btnSearch'
-    values['__EVENTTARGET'] = ''
+    values['__EVENTTARGET'] = 'JourneyPlanner$txtOutboundDate'
     values['__EVENTARGUMENT'] = ''
-    _make_ajax_request(START_URL, opener, values)
-    
+    values['JourneyPlanner$txtOutboundDate'] = datestr
+    values['UserStatus$ScriptManager1'] = 'JourneyPlanner$UpdatePanel1|JourneyPlanner$txtOutboundDate'
+
+    resp_dict = _make_ajax_request(START_URL, opener, values)
 
 def _parse_row(row, depart_date):
     try:
-        depart_time_s = row.find(text="Departs").next.strip()
-        arrive_time_s = row.find(text="Arrives").next.strip()
+        depart_time_s = row.find(text="Departs").next.strip().replace(u'\xa0', u' ')
+        arrive_time_s = row.find(text="Arrives").next.strip().replace(u'\xa0', u' ')
         depart_dt = datetime.datetime.combine(depart_date,
-                datetime.datetime.strptime(depart_time_s, "%I:%M %p").time())
+                datetime.datetime.strptime(depart_time_s, u"%I:%M %p").time())
         arrive_dt = datetime.datetime.combine(depart_date,
-                datetime.datetime.strptime(arrive_time_s, "%I:%M %p").time())
+                datetime.datetime.strptime(arrive_time_s, u"%I:%M %p").time())
         price_re = re.compile("\$\d+\.\d+")
         price_s = row.find(text=price_re)
         price = float(price_re.findall(price_s)[0][1:])
@@ -225,12 +208,34 @@ def _parse_row(row, depart_date):
 def _get_results(opener, values, outbound_date):
     """Load result page and return matching fares as a list of tuples of
     (depart_datetime, arrive_datetime, fare)"""
-    response = opener.open(RESULTS_URL, None)
+
+    params = {
+        "originCode": values['JourneyPlanner$ddlLeavingFrom'],
+        "destinationCode": values['JourneyPlanner$ddlTravellingTo'],
+        "outboundDepartureDate": values['JourneyPlanner$txtOutboundDate'],
+        "inboundDepartureDate": "",
+        "passengerCount": "1",
+        "transportType": "0",
+        "concessionCount": "0",
+        "nusCount": "0",
+        "outboundWheelchairSeated": "0",
+        "outboundOtherDisabilityCount": "0",
+        "inboundWheelchairSeated": "0",
+        "inboundOtherDisabilityCount": "0",
+        "outboundPcaCount": "0",
+        "inboundPcaCount": "0",
+        "promotionCode": "",
+        "withReturn": "0",
+    }
+
+    url = RESULTS_URL + "?" + urllib.urlencode(params)
+
+    response = opener.open(url, None)
     soup = BeautifulSoup(response.read())
-    table = soup.find("table")
+    table = soup.find("div", {"class": "JourneyList"})
     if not table:
-        raise MegabusException("Search expired.")
-    rows = table.findAll("tr")[1:]
+        raise MegabusException("No trips available.")
+    rows = table.findAll("ul", {"class": "journey standard"})
     return filter(None, (_parse_row(row, outbound_date) for row in rows))
 
 class MegabusException(Exception):
