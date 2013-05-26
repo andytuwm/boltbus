@@ -7,7 +7,6 @@
 import datetime
 import re
 from BeautifulSoup import BeautifulSoup
-from dateutil.relativedelta import relativedelta
 import urllib, urllib2, cookielib
 
 START_URL = 'http://us.megabus.com/default.aspx'
