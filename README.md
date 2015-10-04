@@ -6,13 +6,14 @@ so this only works for Boltbus for the time being.
 
 ### Usage
 ```
-bolt-runner.py [-h] -d DATE -s START -e END
+bolt-runner.py [-h] -d DATE -s START -e END [-t]
 
 arguments:
   -h, --help                show this help message and exit
   -d DATE, --date DATE      the date to find fares for (ex. 11/25/2015)
   -s START, --start START   the starting location (ex. Philadelphia)
   -e END, --end END         the ending location (ex. Newark)
+  -t, --text                if this flag is set, send results as a text message
 ```
 
 For example, `bolt-runner.py -d 10/3/2015 -s Philadelphia -e Boston` will find all Boltbus fares and departure/arrival times from Philadelphia to Boston 
