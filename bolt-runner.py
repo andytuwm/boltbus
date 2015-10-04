@@ -55,10 +55,10 @@ if __name__ == '__main__':
   print 'Fares: ', fares
 
   if args.text:
-    twilio_msg_header = 'Fares from ' + args.start + ' to ' + args.end + ' on ' + leavingStr + ': ' + fares
+    twilio_msg = 'Fares from ' + args.start + ' to ' + args.end + ' on ' + leavingStr + ': ' + fares
     print '== Texting results to', twilio_dest
     Twilio.messages.create(to=twilio_dest, from_=twilio_src,
-                           body=twilio_msg_header)
+                           body=twilio_msg)
 
   print '== end boltbus =================='
 
