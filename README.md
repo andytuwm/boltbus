@@ -15,8 +15,8 @@ arguments:
   -e END, --end END         the ending location (ex. Newark)
 ```
 
-For example, `bolt-runner.py -d 10/3/2015 -s Philadelphia -e Boston` will find all Boltbus 
-fares and departure/arrival times for October 3, 2015.
+For example, `bolt-runner.py -d 10/3/2015 -s Philadelphia -e Boston` will find all Boltbus fares and departure/arrival times from Philadelphia to Boston 
+for October 3, 2015.
 
 Example output:
 ```
