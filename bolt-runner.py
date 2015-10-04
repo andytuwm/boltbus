@@ -1,8 +1,6 @@
 from boltbus import BoltbusScraper
-import random
 import datetime
 import json
-
 import argparse
 import dateutil.parser as dparser
 
@@ -10,9 +8,9 @@ Boltbus = BoltbusScraper()
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
-  parser.add_argument('-d', '--date', help='the date to find fares for (ex. 11/25/2015)')
-  parser.add_argument('-s', '--start', help='the starting location (ex. Philadelphia)')
-  parser.add_argument('-e', '--end', help='the ending location (ex. Newark)')
+  parser.add_argument('-d', '--date', help='the date to find fares for (ex. 11/25/2015)', required=True)
+  parser.add_argument('-s', '--start', help='the starting location (ex. Philadelphia)', required=True)
+  parser.add_argument('-e', '--end', help='the ending location (ex. Newark)', required=True)
 
   args = parser.parse_args()
 
