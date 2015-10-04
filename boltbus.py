@@ -3,7 +3,7 @@
 
 import datetime
 import re
-from BeautifulSoup import BeautifulSoup
+from bs4 import BeautifulSoup
 import urllib, urllib2, cookielib
 
 START_URL = 'https://www.boltbus.com/Default.aspx'
@@ -123,7 +123,7 @@ def _init_state(opener, values):
     """
 
     response = opener.open(START_URL, None)
-    megaSoup = BeautifulSoup(response.read())
+    megaSoup = BeautifulSoup(response.read(), 'html.parser')
 
     viewstate = megaSoup.find(name='input', attrs={'name': '__VIEWSTATE'})['value']
     eventvalidation = megaSoup.find(name='input', attrs={'name': '__EVENTVALIDATION'})['value']
@@ -134,7 +134,7 @@ def _init_state(opener, values):
 
     resp_dict = _make_ajax_request(START_URL, opener, values)
 
-    megaSoup = BeautifulSoup(resp_dict['ctl00_cphM_updateOrigin'])
+    megaSoup = BeautifulSoup(resp_dict['ctl00_cphM_updateOrigin'], 'html.parser')
 
     options = megaSoup.find(name='table', attrs={'id': 'ctl00_cphM_forwardRouteUC_lstOrigin_repeater'}).findAll('td')
     startLocations = []
@@ -162,7 +162,7 @@ def _set_start(opener, values, start):
     html = resp_dict['ctl00_cphM_updateOrigin']
 
     # parse out destinations for start
-    megaSoup = BeautifulSoup(html)
+    megaSoup = BeautifulSoup(html, 'html.parser')
     options = megaSoup.find('table', attrs={'id': 'ctl00_cphM_forwardRouteUC_lstDestination_repeater'}).findAll('td')
     endLocations = []
 
@@ -187,7 +187,7 @@ def _set_dest(opener, values, dest):
     html = resp_dict['ctl00_cphM_updateOriginSchedules']
 
     # parse out destinations for start
-    megaSoup = BeautifulSoup(html)
+    megaSoup = BeautifulSoup(html, 'html.parser')
     table = megaSoup.find('table', attrs={'id': 'ctl00_cphM_forwardScheduleUC_ScheduleGrid'})
 
     cells = table.findAll('td', attrs={'class': 'faresColumn0'})

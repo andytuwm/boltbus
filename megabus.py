@@ -6,7 +6,7 @@
 
 import datetime
 import re
-from BeautifulSoup import BeautifulSoup
+from bs4 import BeautifulSoup
 import urllib, urllib2, cookielib
 
 START_URL = 'http://us.megabus.com/default.aspx'
@@ -136,14 +136,14 @@ def _init_state(opener, values):
     """
 
     response = opener.open(START_URL, None)
-    megaSoup = BeautifulSoup(response.read())
+    megaSoup = BeautifulSoup(response.read(), 'html.parser')
     viewstate = megaSoup.find(name='input', attrs={'name': '__VIEWSTATE'})['value']
     eventvalidation = megaSoup.find(name='input', attrs={'name': '__EVENTVALIDATION'})['value']
-    options = megaSoup.find(name='select', attrs={'name': 'JourneyPlanner$ddlLeavingFrom'}).findAll('option')
+    options = megaSoup.find(name='select', attrs={'name': 'JourneyPlanner$ddlOrigin'}).findAll('option')
     startLocations = {}
     for o in options:
         startLocations[int(o['value'])] = o.find(text=True)
-    del startLocations[-1]  # -1 is "Select"
+    del startLocations[0]  # index 0 is 'Select origin'
     opener.addheaders.append(('X-MicrosoftAjax', 'Delta=true'))
     values['__EVENTVALIDATION'] = eventvalidation
     values['__VIEWSTATE'] = viewstate
@@ -230,7 +230,7 @@ def _get_results(opener, values, outbound_date):
     url = RESULTS_URL + "?" + urllib.urlencode(params)
 
     response = opener.open(url, None)
-    soup = BeautifulSoup(response.read())
+    soup = BeautifulSoup(response.read(), 'html.parser')
     table = soup.find("div", {"class": "JourneyList"})
     if not table:
         raise MegabusException("No trips available.")
