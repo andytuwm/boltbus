@@ -1,0 +1,1 @@
+web: python bolt-runner.py -d ENV['LEAVING_DATE'] -s ENV['START_CITY'] -e ENV['END_CITY'] -t
