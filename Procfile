@@ -1,1 +1,0 @@
-web: python bolt-runner.py -d $LEAVING_DATE -s $START_CITY -e $END_CITY -t

@@ -1,3 +1,0 @@
-beautifulsoup4==4.4.0
-python-dateutil==2.4.2
-twilio==4.6.0
