@@ -58,15 +58,16 @@ class FareFinder:
             fares = self._filter_fares_by_price(fares)
             fares = self._filter_fares_by_time(fares)
             # save filtered fares to results
-            self._save_fares(fares, self.search_date)
+            num_found = self._save_fares(fares, self.search_date)
             # print updates to search progress
-            print(self._format_date(self.search_date), "Found", len(self.results), "results.")
+            print(self._format_date(self.search_date), "Found", num_found, "results.")
             # update day
             self._update_to_next_available_day()
             # search next day's fares
             fares = self.search_fare()
 
         print("-- Searched to", self._format_date(self.search_date))
+        print("Found total", len(self.results), "results.")
         print(self.results)
 
     def search_fare(self):
@@ -109,6 +110,7 @@ class FareFinder:
                     "departure": fare[1],
                     "arrival": fare[2]
                 })
+        return len(fares)
 
     def _format_date(self, date):
         return date.strftime('%a %b %d, %Y')
@@ -153,6 +155,4 @@ f = FareFinder("Vancouver", "Seattle", search_after_week=3, preferred_time=Time.
                preferred_days=(Day.FRIDAY, Day.THURSDAY,))
 f.search()
 
-
-# set preferred outbound times, days
 # text or email results
