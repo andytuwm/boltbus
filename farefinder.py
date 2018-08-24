@@ -4,7 +4,9 @@ import dateutil.parser as dparser
 from enum import Enum
 import re
 
+import config
 from bolt import BoltAPI
+import email_helper
 
 
 class Time(Enum):
@@ -24,20 +26,24 @@ class Day(Enum):
 
 
 class FareFinder:
-    def __init__(self, start, end, search_after_week=3, max_price=18, preferred_time=None, preferred_days=None):
+    def __init__(self, start, end, search_after_week=3, max_price=15, preferred_time=None, preferred_days=None,
+                 email_alert=True):
         self.bolt = BoltAPI()
 
         # initialize values
         self.max_price = float(max_price)
         self.pref_time = preferred_time
-        if preferred_days is not None:
-            self.pref_days = {d.value for d in preferred_days}
+        self.email_alert = email_alert
+
+        self.pref_days = {d.value for d in preferred_days} if preferred_days is not None else None
+
         self.start, self.end = {}, {}
         self.results = []
 
         # set searching start date
         # defaults to 3 weeks from now
         self.search_date = datetime.today() + timedelta(weeks=search_after_week) - timedelta(days=1)
+        self.initial_date = self.search_date
         self._update_to_next_available_day()
 
         # get city information
@@ -69,6 +75,12 @@ class FareFinder:
         print("-- Searched to", self._format_date(self.search_date))
         print("Found total", len(self.results), "results.")
         print(self.results)
+
+        if self.email_alert and config.props:
+            mail = email_helper.Gmail(config.props["email"]["user"], config.props["email"]["pwd"])
+            mail.format_schedule_body(self)
+            mail.send_schedule_alert()
+            print("Email alert sent.")
 
     def search_fare(self):
         # sending end location finds fares
@@ -102,7 +114,7 @@ class FareFinder:
         print('-- Set end location to: ', self.end['name'])
 
     def _save_fares(self, fares, date):
-        if date.weekday() in self.pref_days:
+        if self.pref_days is None or date.weekday() in self.pref_days:
             for fare in fares:
                 self.results.append({
                     "date": self._format_date(date),
@@ -151,8 +163,7 @@ class FareFinder:
         return filtered
 
 
-f = FareFinder("Vancouver", "Seattle", search_after_week=3, preferred_time=Time.AFTERNOON, max_price=12,
-               preferred_days=(Day.FRIDAY, Day.THURSDAY,))
+f = FareFinder("Vancouver", "Seattle", search_after_week=6)
 f.search()
 
 # text or email results
