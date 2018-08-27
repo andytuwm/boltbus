@@ -2,6 +2,8 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+from common import config
+
 
 class Gmail:
     def __init__(self, acc, pwd):
@@ -21,7 +23,7 @@ class Gmail:
                     farefinder._format_date(farefinder.initial_date),
                     farefinder._format_date(farefinder.search_date))
         self.msg['From'] = self.acc
-        self.msg['To'] = self.acc
+        self.msg['To'] = ", ".join(config.props["dest_emails"])
 
         msg_body = "<html><body>"
 
@@ -54,4 +56,4 @@ class Gmail:
 
     def send_schedule_alert(self):
         if self.msg:
-            self.mail.sendmail(from_addr=self.acc, to_addrs=[self.acc], msg=self.msg.as_string())
+            self.mail.sendmail(from_addr=self.acc, to_addrs=config.props["dest_emails"], msg=self.msg.as_string())

@@ -1,12 +1,12 @@
+import re
 from datetime import datetime
 from datetime import timedelta, time
-import dateutil.parser as dparser
 from enum import Enum
-import re
+import dateutil.parser as dparser
 
-import config
 from bolt import BoltAPI
-import email_helper
+from common import email_helper
+from common import config
 
 
 class Time(Enum):
@@ -166,4 +166,4 @@ class FareFinder:
 f = FareFinder("Vancouver", "Seattle", search_after_week=6)
 f.search()
 
-# text or email results
+# make arguement parser main file
