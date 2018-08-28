@@ -161,9 +161,3 @@ class FareFinder:
                 if departure_time >= time(hour=12):
                     filtered.append(fare)
         return filtered
-
-
-f = FareFinder("Vancouver", "Seattle", search_after_week=6)
-f.search()
-
-# make arguement parser main file
