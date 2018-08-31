@@ -6,14 +6,13 @@ from common import config
 
 
 class Gmail:
-    def __init__(self, acc, pwd):
-        self.acc = acc
-        self.pwd = pwd
+    def __init__(self):
+        self.sender = config.props["sender_address"]
         self.msg = MIMEMultipart('alternative')
 
-        self.mail = smtplib.SMTP_SSL("smtp.gmail.com", 465)
-        self.mail.ehlo()
-        self.mail.login(acc, pwd)
+        self.mail = smtplib.SMTP("email-smtp.us-west-2.amazonaws.com", 587)
+        self.mail.starttls()
+        self.mail.login(config.props["ses"]["access_key"], config.props["ses"]["secret"])
 
     def format_schedule_body(self, farefinder):
         fares = farefinder.results
@@ -22,7 +21,7 @@ class Gmail:
             .format(len(fares),
                     farefinder._format_date(farefinder.initial_date),
                     farefinder._format_date(farefinder.search_date))
-        self.msg['From'] = self.acc
+        self.msg['From'] = self.sender
         self.msg['To'] = ", ".join(config.props["dest_emails"])
 
         msg_body = "<html><body>"
@@ -56,4 +55,4 @@ class Gmail:
 
     def send_schedule_alert(self):
         if self.msg:
-            self.mail.sendmail(from_addr=self.acc, to_addrs=config.props["dest_emails"], msg=self.msg.as_string())
+            self.mail.sendmail(from_addr=self.sender, to_addrs=config.props["dest_emails"], msg=self.msg.as_string())

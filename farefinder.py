@@ -77,7 +77,7 @@ class FareFinder:
         print(self.results)
 
         if self.email_alert and config.props:
-            mail = email_helper.Gmail(config.props["email"]["user"], config.props["email"]["pwd"])
+            mail = email_helper.Gmail()
             mail.format_schedule_body(self)
             mail.send_schedule_alert()
             print("Email alert sent.")
